@@ -1,5 +1,3 @@
-<snippet>
-  <content><![CDATA[
 # ${1:Vault plugin}
 [Hashicorp Vault](https://github.com/hashicorp/vault) plugin for [Netflix Lemur](https://github.com/Netflix/lemur).
 ## Installation
@@ -18,6 +16,3 @@ TODO: Write history
 TODO: Write credits
 ## License
 TODO: Write license
-]]></content>
-  <tabTrigger>readme</tabTrigger>
-</snippet>
