@@ -25,7 +25,7 @@ class PluginName(IssuerPlugin):
        
        # Check for error from vault_plugin
 
-       cert = resp,json['data']['certificate']
+       cert = resp.json['data']['certificate']
        return cert
 
      @staticmethod
