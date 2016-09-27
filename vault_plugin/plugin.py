@@ -22,8 +22,11 @@ class PluginName(IssuerPlugin):
        post_params = process_options(options)
        post_params['csr'] = csr
        resp = requests.post(VAULT_URL, post_params)
-       if resp.status_code != 200:
-            raise ApiError('POST /pki/sign/ '.format(resp.status_code))
+       
+       # Check for error from vault_plugin
+
+       cert = resp,json['data']['certificate']
+       return cert
 
      @staticmethod
     def create_authority(options):
