@@ -4,7 +4,8 @@ import requests
 from lemur.plugins.base.issuer import IssuerPlugin
 
 def process_options(options)
-    raise NotImplemented
+    data['format'] = 'pem'
+    return data
 
 class PluginName(IssuerPlugin):
     title = 'Hashicorp Vault'
@@ -21,7 +22,7 @@ class PluginName(IssuerPlugin):
        post_params = process_options(options)
        post_params['csr'] = csr
        resp = requests.post(VAULT_URL, post_params)
-       if resp.status_code != 201:
+       if resp.status_code != 200:
             raise ApiError('POST /pki/sign/ '.format(resp.status_code))
 
      @staticmethod
