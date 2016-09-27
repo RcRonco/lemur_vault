@@ -1,4 +1,4 @@
-# 1:Vault plugin
+# Vault plugin
 [Hashicorp Vault](https://github.com/hashicorp/vault) plugin for [Netflix Lemur](https://github.com/Netflix/lemur).
 ## Installation
 TODO: Describe the installation process
