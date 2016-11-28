@@ -57,6 +57,3 @@
   allow_subdomains="true" allow_ip_sans="true" max_ttl="72h" \
   allow_localhost="true" allow_ip_sans="true"
   ```
-
-
-
