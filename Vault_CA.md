@@ -29,7 +29,9 @@
   allow_subdomains="true" allow_ip_sans="true" max_ttl="72h" \
   allow_localhost="true" allow_ip_sans="true"
   ```
-  
+ 
+WARNING: When running Vault in "Dev" Server Mode, Vault shutdown will result CA being deleted.
+ 
 **2. Externally generated CA.**
 - Mount the PKI backend with this command:
 
