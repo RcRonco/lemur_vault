@@ -1,7 +1,12 @@
 # Vault plugin
 [Hashicorp Vault](https://github.com/hashicorp/vault) plugin for [Netflix Lemur](https://github.com/Netflix/lemur).
+
+## Prerequisites
+1. Lemur 0.3+
+2. Hashicorp Vault with PKI backend mounted.
+
 ## Installation
-1. Configure the Vault PKI as Certificate Authority.
+1. Configure the [Vault PKI as Certificate Authority](Vault_CA.md).
 2. To install the plugin, add the following lines to your lemur.conf.py file:    
 
   ```python

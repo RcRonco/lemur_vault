@@ -29,14 +29,19 @@
   allow_subdomains="true" allow_ip_sans="true" max_ttl="72h" \
   allow_localhost="true" allow_ip_sans="true"
   ```
-  
+ 
+WARNING: When running Vault in "Dev" Server Mode, Vault shutdown will result in CA being deleted.
+ 
 **2. Externally generated CA.**
+
 - Mount the PKI backend with this command:
 
   ```sh
   vault mount pki
   ```
-- Now we need to create a certificate bundle:
+
+- Now we need to create a certificate bundle.
+ (For basic configuration of CA via openssl follow [this](https://datacenteroverlords.com/2012/03/01/creating-your-own-ssl-certificate-authority/) guide).
 
   ```sh
   export CA_PATH=/PATH/TO/CA
