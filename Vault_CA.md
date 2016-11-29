@@ -1,5 +1,37 @@
 # Configure Vault as a Certificate Authority
-- To mount the PKI mount in Vault enter the command:
+
+#### This can be done in two ways:
+
+**1. Vault generated CA.**
+
+- Mount the PKI backend with this command:
+
+  ```sh
+  vault mount pki
+  ```
+  
+- Now we set maximum life time for the certificate:
+
+  ```sh
+  vault mount-tune -max-lease-ttl=87600h pki
+  ```
+  
+- We generate our root certificate:
+
+  ```sh
+  vault write pki/root/generate/internal common_name=myvault.com ttl=87600h
+  ```
+
+- Configure a role:
+  
+  ```sh
+  vault write pki/roles/example-role allow_any_name="true" \
+  allow_subdomains="true" allow_ip_sans="true" max_ttl="72h" \
+  allow_localhost="true" allow_ip_sans="true"
+  ```
+  
+**2. Externally generated CA.**
+- Mount the PKI backend with this command:
 
   ```sh
   vault mount pki
@@ -12,7 +44,7 @@
   openssl rsa -in $CA_PATH/private/ca.key >> /path/to/vault/ca_bundle.pem
   ```
   
-- Configure vault as CA:
+- Assign CA to vault:
 
   ```sh
   vault write pki/config/ca pem_bundle="@/path/to/vault/ca_bundle.pem"
