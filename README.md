@@ -6,7 +6,7 @@
 2. Hashicorp Vault with PKI backend mounted.
 
 ## Installation
-1. Configure the Vault PKI as Certificate Authority.
+1. Configure the [Vault PKI as Certificate Authority](Vault_CA.md).
 2. To install the plugin, add the following lines to your lemur.conf.py file:    
 
   ```python
