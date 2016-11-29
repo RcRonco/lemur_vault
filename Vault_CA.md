@@ -30,7 +30,7 @@
   allow_localhost="true" allow_ip_sans="true"
   ```
  
-WARNING: When running Vault in "Dev" Server Mode, Vault shutdown will result CA being deleted.
+WARNING: When running Vault in "Dev" Server Mode, Vault shutdown will result in CA being deleted.
  
 **2. Externally generated CA.**
 
