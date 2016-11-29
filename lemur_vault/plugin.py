@@ -27,9 +27,9 @@ def process_sign_options(options, csr):
     if ip_sans != '':
         data += ', "ip_sans": "' + ip_sans[:-2] + '"'
 
-	is_valid, ttl = validate_ttl(options)
-	if is_valid:	
-		data += ', "ttl": "' + ttl + 'h"'
+    is_valid, ttl = validate_ttl(options)
+    if is_valid:
+        data += ', "ttl": "' + ttl + 'h"'
 
     data += '}'
 
@@ -41,24 +41,24 @@ def validate_ttl(options):
         ttl = math.floor(abs(options['validity_end'] - options['validity_start']).total_seconds() / 3600)
     elif options['validity_years']:
         ttl = options['validity_years'] * 365 * 24
-	try:
-		resp = requests.get(current_app.get('VAULT_BASE_URL' + '/v1/pki/roles/' + options['Authority'].name
-		
-		if resp.status_code != 200:
-			current_config.logger.info('Vault: Can\'t access role configuration.')
-			raise Exception('Vault: Can\'t access role configuration.')
+    try:
+        resp = requests.get(current_app.get('VAULT_BASE_URL') + '/v1/pki/roles/' + options['Authority'].name)
 
-		max_ttl = resp.json()['max_ttl']
-		
-		if int(max_ttl[:-1]) < ttl
-			current_app.logger.info('Certificate TTL is above max ttl - ' + max_ttl)
-			return False, -1
-		else:
-			return True, ttl
-				
+        if resp.status_code != 200:
+            current_app.logger.info('Vault: Can\'t access role configuration.')
+            raise Exception('Vault: Can\'t access role configuration.')
+
+        max_ttl = resp.json()['max_ttl']
+
+        if int(max_ttl[:-1]) < ttl:
+            current_app.logger.info('Certificate TTL is above max ttl - ' + max_ttl)
+            return False, -1
+        else:
+            return True, ttl
+
     except ConnectionError as ConnError:
-        current_app.logger.info('There was an error while connecting to Vault server.')
-        raise ConnError	
+        current_app.logger.info('Vault: There was an error while connecting to Vault server.')
+        raise ConnError
 
 
 def process_role_options(options):
@@ -80,6 +80,8 @@ def process_role_options(options):
         ttl = math.floor(abs(options['validity_end'] - options['validity_start']).total_seconds() / 3600)
     elif options['validity_years']:
         ttl = options['validity_years'] * 365 * 24
+    else:
+        raise Exception('Vault: No TTL was filled in.')
 
     data += ',"ttl":"' + str(ttl) + 'h", "max_ttl":"' + str(ttl) + 'h"'
     data += '}'
@@ -105,19 +107,18 @@ def create_vault_role(options):
 
 def get_ca_certificate():
     url = current_app.config.get('VAULT_CA_URL')
+    try:
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            current_app.logger.info('Vault PKI failed to get CA Certificate.')
+            raise Exception('Vault failed to get CA certificate.')
 
-	try:
-    	resp = requests.get(url)
-		if resp.status_code != 200
-			current_app.logger.info('Vault PKI failed to get CA Certificate.')
-			raise Exception('Vault failed to get CA certificate.')
+        cert = resp.content[:-1]
 
-    	cert = resp.content[:-1]
+        return cert
 
-	    return cert
-
-	except ConnectionError as ConnError:
-		current_app.logger.info('There was an error while connecting to Vault server.')
+    except ConnectionError as ConnError:
+        current_app.logger.info('There was an error while connecting to Vault server.')
         raise ConnError
 
 
@@ -145,7 +146,8 @@ class VaultIssuerPlugin(IssuerPlugin):
             resp = requests.post(url, data=params, headers=headers)
 
             if resp.status_code != 200:
-                current_app.logger.info('Vault certificate signing failed - Vault error code' + str(resp.status_code) + '.')
+                current_app.logger.info(
+                    'Vault certificate signing failed - Vault error code' + str(resp.status_code) + '.')
                 raise Exception('Vault Error', resp.content)
 
             cert = resp.json()['data']['certificate']
