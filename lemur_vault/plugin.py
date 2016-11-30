@@ -31,6 +31,8 @@ def process_sign_options(options, csr):
     is_valid, ttl = validate_ttl(options)
     if is_valid:
         vault_params += ', "ttl": "' + ttl + 'h"'
+    else:
+        raise Exception('TTL is too high please choose date sooner.')
 
     vault_params += '}'
 
@@ -66,7 +68,8 @@ def process_role_options(options):
     vault_params = '{"allow_subdomains":"true", "allow_any_name":"true"'
 
     if options['key_type']:
-        vault_params += ',"key_type":"' + options['key_type'][:3].lower() + '", "key_bits":"' + options['key_type'][-4:] + '"'
+        vault_params += ',"key_type":"' + options['key_type'][:3].lower() + '", "key_bits":"' + options['key_type'][
+                                                                                                -4:] + '"'
 
     key_usage = ',"key_usage":"'
     if options['extensions']:
@@ -92,7 +95,7 @@ def process_role_options(options):
 
 
 def create_vault_role(options):
-    url = current_app.config.get('VAULT_ROLES_URL') + options['name']
+    url = current_app.config.get('VAULT_URL') + '/roles/' + options['name']
     headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
     params = process_role_options(options)
 
@@ -108,16 +111,32 @@ def create_vault_role(options):
 
 
 def get_ca_certificate():
-    url = current_app.config.get('VAULT_CA_URL')
+    url = current_app.config.get('VAULT_URL') + '/ca/pem'
     try:
         resp = requests.get(url)
         if resp.status_code != 200:
             current_app.logger.info('Vault PKI failed to get CA Certificate.')
             raise Exception('Vault failed to get CA certificate.')
 
-        cert = resp.content[:-1]
+        ca_cert = resp.content[:-1]
 
-        return cert
+        return ca_cert
+
+    except ConnectionError as ConnError:
+        current_app.logger.info('There was an error while connecting to Vault server.')
+        raise ConnError
+
+
+def get_chain_certificate():
+    url = current_app.config.get('VAULT_URL') + '/ca_chain'
+    try:
+        resp = requests.get(url)
+        if resp.status_code == 200:
+            chain_cert = resp.content
+        else:
+            chain_cert = ''
+
+        return chain_cert
 
     except ConnectionError as ConnError:
         current_app.logger.info('There was an error while connecting to Vault server.')
@@ -137,9 +156,9 @@ class VaultIssuerPlugin(IssuerPlugin):
         headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
 
         if csr:
-            url = current_app.config.get('VAULT_SIGN_URL')
+            url = current_app.config.get('VAULT_URL') + '/issue/'
         else:
-            url = current_app.config.get('VAULT_ISSUE_URL')
+            url = current_app.config.get('VAULT_URL') + '/sign/'
 
         url += issuer_options['authority'].name
         params = process_sign_options(issuer_options, csr)
@@ -152,8 +171,13 @@ class VaultIssuerPlugin(IssuerPlugin):
                     'Vault certificate signing failed - Vault error code' + str(resp.status_code) + '.')
                 raise Exception('Vault Error', resp.content)
 
-            cert = resp.json()['data']['certificate']
-            int_cert = resp.json()['data']['issuing_ca']
+            jsonResp = resp.json()
+            cert = jsonResp['data']['certificate']
+
+            if jsonResp['data']['ca_chain']:
+                int_cert = jsonResp['data']['ca_chain']
+            else:
+                int_cert = jsonResp['data']['issuing_ca']
 
             if not cert:
                 current_app.logger.info('Vault certificate signing failed.')
@@ -168,9 +192,11 @@ class VaultIssuerPlugin(IssuerPlugin):
 
     @staticmethod
     def create_authority(options):
+        ca_cert = get_ca_certificate()
+        chain_cert = get_chain_certificate()
         create_vault_role(options)
-        cert = get_ca_certificate()
+
         role = {'username': '', 'password': '', 'name': 'vault'}
 
         current_app.logger.info('Vault CA created successfully.')
-        return cert, "", [role]
+        return ca_cert, chain_cert, [role]
