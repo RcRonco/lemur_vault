@@ -3,7 +3,7 @@
 
 ## Prerequisites
 1. Lemur 0.3+
-2. Hashicorp Vault 0.6+ with PKI backend mounted.
+2. Hashicorp Vault 0.6+ - 0.6.2 is the recommended version.
 
 ## Installation
 1. Configure the [Vault PKI as Certificate Authority](Vault_CA.md).
