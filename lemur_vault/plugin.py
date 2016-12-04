@@ -29,8 +29,9 @@ def process_sign_options(options, csr):
         vault_params += ', "ip_sans": "' + ip_sans[:-2] + '"'
 
     is_valid, ttl = validate_ttl(options)
+
     if is_valid:
-        vault_params += ', "ttl": "' + ttl + 'h"'
+        vault_params += ', "ttl": "' + str(int(ttl)) + 'h"'
     else:
         raise Exception('TTL is too high please choose date sooner.')
 
@@ -40,20 +41,21 @@ def process_sign_options(options, csr):
 
 
 def validate_ttl(options):
-    if options['validity_end'] and options['validity_start']:
+    if 'validity_end' in options and 'validity_start' in options:
         ttl = math.floor(abs(options['validity_end'] - options['validity_start']).total_seconds() / 3600)
-    elif options['validity_years']:
+    elif 'validity_years' in options:
         ttl = options['validity_years'] * 365 * 24
     try:
-        resp = requests.get(current_app.get('VAULT_BASE_URL') + '/v1/pki/roles/' + options['Authority'].name)
+        headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
+        resp = requests.get(current_app.config.get('VAULT_URL') + '/roles/' + options['authority'].name, headers=headers)
 
         if resp.status_code != 200:
             current_app.logger.info('Vault: Can\'t access role configuration.')
             raise Exception('Vault: Can\'t access role configuration.')
 
-        max_ttl = resp.json()['max_ttl']
+        max_ttl = resp.json()['data']['max_ttl']
 
-        if int(max_ttl[:-1]) < ttl:
+        if int(max_ttl.rsplit('h', 1)[0]) < ttl:
             current_app.logger.info('Certificate TTL is above max ttl - ' + max_ttl)
             return False, -1
         else:
@@ -67,25 +69,25 @@ def validate_ttl(options):
 def process_role_options(options):
     vault_params = '{"allow_subdomains":"true", "allow_any_name":"true"'
 
-    if options['key_type']:
+    if 'key_type' in options:
         vault_params += ',"key_type":"' + options['key_type'][:3].lower() + '", "key_bits":"' + options['key_type'][
                                                                                                 -4:] + '"'
-
     key_usage = ',"key_usage":"'
-    if options['extensions']:
-        if options['extensions']['key_usage']:
-            if options['extensions']['key_usage']['use_digital_signature']:
-                key_usage += 'DigitalSignature,'
-            if options['extensions']['key_usage']['use_key_encipherment']:
-                key_usage += 'KeyEncipherment,'
-        vault_params += key_usage + 'KeyEncipherment"'
+
+    if 'extensions' in options and 'key_usage' in options['extensions']:
+        if 'use_digital_signature' in options['extensions']['key_usage']:
+            key_usage += 'DigitalSignature,'
+        if 'use_key_encipherment' in options['extensions']['key_usage']:
+            key_usage += 'KeyEncipherment,'
+        vault_params += key_usage + 'KeyAgreement"'
 
     ttl = -1
 
-    if options['validity_end'] and options['validity_start']:
+    if 'validity_end' in options and 'validity_start' in options:
         ttl = math.floor(abs(options['validity_end'] - options['validity_start']).total_seconds() / 3600)
-    elif options['validity_years']:
+    elif 'validity_years' in options:
         ttl = options['validity_years'] * 365 * 24
+
     if ttl > 0:
         vault_params += ',"ttl":"' + str(ttl) + 'h", "max_ttl":"' + str(ttl) + 'h"'
 
@@ -105,6 +107,7 @@ def create_vault_role(options):
         if resp.status_code != 204:
             raise Exception('Vault error' + resp.content)
         current_app.logger.info('Vaule PKI role created successfully.')
+
     except ConnectionError as ConnError:
         current_app.logger.info('Connection Error')
         raise ConnError
@@ -171,13 +174,13 @@ class VaultIssuerPlugin(IssuerPlugin):
                     'Vault certificate signing failed - Vault error code' + str(resp.status_code) + '.')
                 raise Exception('Vault Error', resp.content)
 
-            jsonResp = resp.json()
-            cert = jsonResp['data']['certificate']
+            json_resp = resp.json()
+            cert = json_resp['data']['certificate']
 
-            if jsonResp['data']['ca_chain']:
-                int_cert = jsonResp['data']['ca_chain']
+            if 'ca_chain' in json_resp['data']:
+                int_cert = json_resp['data']['ca_chain']
             else:
-                int_cert = jsonResp['data']['issuing_ca']
+                int_cert = json_resp['data']['issuing_ca']
 
             if not cert:
                 current_app.logger.info('Vault certificate signing failed.')
