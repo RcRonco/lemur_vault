@@ -10,7 +10,7 @@ install_requires = [
 
 setup(
     name='lemur_vault',
-    version='0.2',
+    version='0.1',
     author='Ron Cohen',
     author_email='roncohen04[at]gmail[dot]com',
     include_package_data=True,
