@@ -11,7 +11,7 @@ def process_sign_options(options, csr):
     vault_params = '{"format":"pem", "common_name": "' + options['common_name'] + '"'
 
     if csr:
-        vault_params += ', "csr": "' + csr.decode('utf-8').replace('\n', '\\n') + '"'
+        vault_params += ', "csr": "' + csr.replace('\n', '\\n') + '"'
 
     alt_names = options['extensions']['sub_alt_names']['names']
     dns_names = ''
@@ -105,7 +105,7 @@ def create_vault_role(options):
         resp = requests.post(url, data=params, headers=headers)
 
         if resp.status_code != 204:
-            raise Exception('Vault error' + resp.content)
+            raise Exception('Vault error' + resp.json()['errors'][0])
         current_app.logger.info('Vaule PKI role created successfully.')
 
     except ConnectionError as ConnError:
@@ -158,10 +158,13 @@ class VaultIssuerPlugin(IssuerPlugin):
     def create_certificate(self, csr, issuer_options):
         headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
 
+        if type(csr) is bytes:
+            csr = csr.decode('utf-8')
+
         if csr:
-            url = current_app.config.get('VAULT_URL') + '/issue/'
-        else:
             url = current_app.config.get('VAULT_URL') + '/sign/'
+        else:
+            url = current_app.config.get('VAULT_URL') + '/issue/'
 
         url += issuer_options['authority'].name
         params = process_sign_options(issuer_options, csr)
@@ -178,7 +181,8 @@ class VaultIssuerPlugin(IssuerPlugin):
             cert = json_resp['data']['certificate']
 
             if 'ca_chain' in json_resp['data']:
-                int_cert = json_resp['data']['ca_chain']
+                chain_certs = json_resp['data']['ca_chain']
+                int_cert = '\n'.join(chain_certs)
             else:
                 int_cert = json_resp['data']['issuing_ca']
 
@@ -200,6 +204,11 @@ class VaultIssuerPlugin(IssuerPlugin):
         create_vault_role(options)
 
         role = {'username': '', 'password': '', 'name': 'vault'}
-
         current_app.logger.info('Vault CA created successfully.')
+
+        if type(ca_cert) is bytes:
+            ca_cert = ca_cert.decode('utf-8')
+        if type(chain_cert) is bytes:
+            chain_cert = chain_cert.decode('utf-8')
+
         return ca_cert, chain_cert, [role]
