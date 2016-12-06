@@ -11,7 +11,7 @@
 
   ```python
   # Hashicorp Vault Plugin
-  VAULT_BASE_URL = 'http://127.0.0.1:8200/v1/pki' # as example
+  VAULT_URL = 'http://127.0.0.1:8200/v1/pki' # as example
   VAULT_AUTH_TOKEN = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
   ```
 
