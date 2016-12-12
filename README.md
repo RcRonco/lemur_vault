@@ -16,6 +16,14 @@
   ```
 
 3. Deploy and install the files.
+
+  ```python
+   # Install Vault Plugin
+   cd lemur/plugins/
+   git clone https://github.com/RcRonco/lemur_vault
+   cd lemur_vault
+   pip install .
+  ```
 4. Create a Certificate Authority in the lemur web interface.
 
 ## Contributing
