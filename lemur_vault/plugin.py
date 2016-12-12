@@ -9,10 +9,15 @@ from requests import ConnectionError
 
 def handle_request(method, url, headers={}, data=''):
     try:
+        if url.split('//')[0].lower() == 'https:':
+            verify = current_app.config.get('VAULT_CA')
+        else:
+            verify = ''
+
         if method == 'GET':
-            resp = requests.get(url, headers=headers)
+            resp = requests.get(url, headers=headers, verify=verify)
         elif method == 'POST':
-            resp = requests.post(url, data=data, headers=headers)
+            resp = requests.post(url, data=data, headers=headers, verify=verify)
 
         if resp.status_code != 200 or resp.status_code != 200:
             current_app.logger.info('Vault: ' + resp.json()['errors'][0])
