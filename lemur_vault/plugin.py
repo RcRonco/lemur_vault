@@ -15,13 +15,13 @@ def handle_request(method, url, headers={}, data=''):
             resp = requests.post(url, data=data, headers=headers)
 
         if resp.status_code != 200 or resp.status_code != 200:
-            current_app.logger.info('Vault PKI failed to get CA Certificate.')
+            current_app.logger.info('Vault: ' + resp.json()['errors'][0])
             return False, resp.json()['errors'][0]
 
         return True, resp
 
     except ConnectionError as ConnError:
-        current_app.logger.info('There was an error while connecting to Vault server.')
+        current_app.logger.info('Vault: There was an error while connecting to Vault server.')
         raise ConnError
 
 
@@ -51,7 +51,7 @@ def process_sign_options(options, csr):
     if is_valid:
         vault_params += ', "ttl": "' + str(int(ttl)) + 'h"'
     else:
-        raise Exception('TTL is too high please choose date sooner.')
+        raise Exception('Vault: TTL is too high please choose date sooner.')
 
     vault_params += '}'
 
@@ -76,7 +76,8 @@ def validate_ttl(options):
         else:
             return True, ttl
     else:
-        raise Exception('Vault error' + resp.json()['errors'][0])
+        current_app.logger.info('Vault: Failed to get Vault max TTL')
+        raise Exception('Vault: ' + resp)
 
 
 def process_role_options(options):
@@ -118,7 +119,8 @@ def create_vault_role(options):
     if res:
         current_app.logger.info('Vaule PKI role created successfully.')
     else:
-        raise Exception('Vault error' + resp.json()['errors'][0])
+        current_app.logger.info('Vaule PKI Failed to create role.')
+        raise Exception('Vault error' + resp)
 
 
 def get_ca_certificate():
@@ -171,9 +173,8 @@ class VaultIssuerPlugin(IssuerPlugin):
         res, resp = handle_request('POST', url, headers, params)
 
         if not res:
-            current_app.logger.info(
-                'Vault certificate signing failed - Vault error code' + str(resp.status_code) + '.')
-            raise Exception('Vault error' + resp.json()['errors'][0])
+            current_app.logger.info('Vault: ' + resp + '.')
+            raise Exception('Vault: ' + resp)
         else:
             json_resp = resp.json()
             cert = json_resp['data']['certificate']
@@ -186,9 +187,9 @@ class VaultIssuerPlugin(IssuerPlugin):
 
             if not cert:
                 current_app.logger.info('Vault certificate signing failed.')
-                raise Exception('Vault plugin error' + resp.content + '.')
+                raise Exception('Vault: ' + resp.content + '.')
             else:
-                current_app.logger.info('Vault certificate created successfully.')
+                current_app.logger.info('Vault: certificate created successfully.')
                 return cert, int_cert
 
 
@@ -199,7 +200,7 @@ class VaultIssuerPlugin(IssuerPlugin):
         create_vault_role(options)
 
         role = {'username': '', 'password': '', 'name': 'vault'}
-        current_app.logger.info('Vault CA created successfully.')
+        current_app.logger.info('Vault: CA created successfully.')
 
         if type(ca_cert) is bytes:
             ca_cert = ca_cert.decode('utf-8')
