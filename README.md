@@ -13,17 +13,21 @@
   # Hashicorp Vault Plugin
   VAULT_URL = 'http://127.0.0.1:8200/v1/pki' # as example
   VAULT_AUTH_TOKEN = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+  
+  # For HTTPS add this option:
+  VAULT_CA = '/path/ca/certificate' # path to the ca certificate sign the Vault https cert.
   ```
 
 3. Deploy and install the files.
 
-  ```python
-   # Install Vault Plugin
-   cd lemur/plugins/
-   git clone https://github.com/RcRonco/lemur_vault
-   cd lemur_vault
-   pip install .
+  ```sh
+  # Install Vault Plugin
+  cd lemur/plugins/
+  git clone https://github.com/RcRonco/lemur_vault
+  cd lemur_vault
+  pip install .
   ```
+  
 4. Create a Certificate Authority in the lemur web interface.
 
 ## Contributing
