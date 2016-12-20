@@ -7,19 +7,40 @@ from flask import current_app
 from requests import ConnectionError
 
 
-def handle_request(method, url, headers={}, data=''):
+def vault_write_request(url, data):
+    headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
     try:
         if url.split('//')[0].lower() == 'https:':
             verify = current_app.config.get('VAULT_CA')
         else:
             verify = ''
 
-        if method == 'GET':
-            resp = requests.get(url, headers=headers, verify=verify)
-        elif method == 'POST':
-            resp = requests.post(url, data=data, headers=headers, verify=verify)
+        resp = requests.post(url, data=data, headers=headers, verify=verify)
 
-        if resp.status_code != 200 or resp.status_code != 200:
+        if resp.status_code != 200 and resp.status_code != 204:
+            current_app.logger.info('Vault: ' + resp.json()['errors'][0])
+            return False, resp.json()['errors'][0]
+
+        return True, resp
+
+    except ConnectionError as ConnError:
+        current_app.logger.info('Vault: There was an error while connecting to Vault server.')
+        raise ConnError
+
+
+def vault_read_request(url, headers=None):
+    try:
+        if url.split('//')[0].lower() == 'https:':
+            verify = current_app.config.get('VAULT_CA')
+        else:
+            verify = ''
+
+        if headers:
+            resp = requests.get(url, headers=headers, verify=verify)
+        else:
+            resp = requests.get(url, verify=verify)
+
+        if resp.status_code != 200 and resp.status_code != 204:
             current_app.logger.info('Vault: ' + resp.json()['errors'][0])
             return False, resp.json()['errors'][0]
 
@@ -70,8 +91,7 @@ def validate_ttl(options):
         ttl = options['validity_years'] * 365 * 24
 
     headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
-    res, resp = handle_request('GET', current_app.config.get('VAULT_URL') + '/roles/' + options['authority'].name,
-                               headers=headers)
+    res, resp = vault_read_request(current_app.config.get('VAULT_URL') + '/roles/' + options['authority'].name, headers)
 
     if res:
         max_ttl = resp.json()['data']['max_ttl']
@@ -117,10 +137,10 @@ def process_role_options(options):
 
 def create_vault_role(options):
     url = current_app.config.get('VAULT_URL') + '/roles/' + options['name']
-    headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
     params = process_role_options(options)
 
-    res, resp = handle_request('POST', url, params, headers)
+    res, resp = vault_write_request(url, params)
+
     if res:
         current_app.logger.info('Vaule PKI role created successfully.')
     else:
@@ -130,7 +150,7 @@ def create_vault_role(options):
 
 def get_ca_certificate():
     url = current_app.config.get('VAULT_URL') + '/ca/pem'
-    res, resp = handle_request('GET', url)
+    res, resp = vault_read_request(url)
 
     if res:
         ca_cert = resp.content[:-1]
@@ -142,8 +162,8 @@ def get_ca_certificate():
 
 def get_chain_certificate():
     url = current_app.config.get('VAULT_URL') + '/ca_chain'
+    res, resp = vault_read_request(url)
 
-    res, resp = handle_request('GET', url)
     if res:
         chain_cert = resp.content
     else:
@@ -162,8 +182,6 @@ class VaultIssuerPlugin(IssuerPlugin):
     author_url = 'https://github.com/RcRonco/lemur_vault'
 
     def create_certificate(self, csr, issuer_options):
-        headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
-
         if type(csr) is bytes:
             csr = csr.decode('utf-8')
 
@@ -174,8 +192,7 @@ class VaultIssuerPlugin(IssuerPlugin):
 
         url += issuer_options['authority'].name
         params = process_sign_options(issuer_options, csr)
-
-        res, resp = handle_request('POST', url, headers, params)
+        res, resp = vault_write_request(url, params)
 
         if not res:
             current_app.logger.info('Vault: ' + resp + '.')
@@ -196,7 +213,6 @@ class VaultIssuerPlugin(IssuerPlugin):
             else:
                 current_app.logger.info('Vault: certificate created successfully.')
                 return cert, int_cert
-
 
     @staticmethod
     def create_authority(options):
