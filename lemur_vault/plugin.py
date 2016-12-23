@@ -9,6 +9,13 @@ from requests import ConnectionError
 
 
 def vault_write_request(url, data):
+    """
+    This is a write request function to vault.
+    :param url: url to the Vault server
+    :param data: json string with all Vault parameters
+    :return: 1. Boolean if the request succeed or not.
+             2. If succeed return response object if failed return error string.
+    """
     headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
     try:
         if url.split('//')[0].lower() == 'https:':
@@ -30,6 +37,13 @@ def vault_write_request(url, data):
 
 
 def vault_read_request(url, headers=None):
+    """
+    This is a read request function to vault.
+    :param url: url to the Vault server
+    :param headers: headers for the GET request
+    :return: 1. Boolean if the request succeed or not.
+             2. If succeed return response object if failed return error string.
+    """
     try:
         if url.split('//')[0].lower() == 'https:':
             verify = current_app.config.get('VAULT_CA')
@@ -53,6 +67,12 @@ def vault_read_request(url, headers=None):
 
 
 def process_sign_options(options, csr):
+    """
+    Parse Lemur options and convert them to Vault parameter in json format.
+    :param options: Lemur option dictionary
+    :param csr: CSR
+    :return: All needed parameters for Vault signing endpoint in json formatted string.
+    """
     vault_params = {'format': 'pem', 'common_name': options['common_name']}
 
     if csr:
@@ -84,6 +104,12 @@ def process_sign_options(options, csr):
 
 
 def validate_ttl(options):
+    """
+    Check with Vault if the ttl is valid.
+    :param options: Lemur option dictionary
+    :return: 1. Boolean if the ttl is valid or not.
+             2. the ttl in hours.
+    """
     if 'validity_end' in options and 'validity_start' in options:
         ttl = math.floor(abs(options['validity_end'] - options['validity_start']).total_seconds() / 3600)
     elif 'validity_years' in options:
@@ -105,6 +131,11 @@ def validate_ttl(options):
 
 
 def process_role_options(options):
+    """
+    Parse Lemur options and convert them to Vault parameter in json format.
+    :param options: Lemur option dictionary
+    :return: All needed parameters for Vault roles endpoint in json formatted string.
+    """
     vault_params = {'allow_subdomains': 'true', 'allow_any_name': 'true'}
 
     if 'key_type' in options:
@@ -133,6 +164,10 @@ def process_role_options(options):
 
 
 def create_vault_role(options):
+    """
+    Create a role in Vault the matches the Lemur CA options.
+    :param options: Lemur option dictionary
+    """
     url = current_app.config.get('VAULT_URL') + '/roles/' + options['name']
     params = process_role_options(options)
 
@@ -146,6 +181,10 @@ def create_vault_role(options):
 
 
 def get_ca_certificate():
+    """
+    Get from Vault the CA certificate
+    :return: A CA certificate string in PEM format.
+    """
     url = current_app.config.get('VAULT_URL') + '/ca/pem'
     res, resp = vault_read_request(url)
 
@@ -158,6 +197,10 @@ def get_ca_certificate():
 
 
 def get_chain_certificate():
+    """
+    Get from Vault the CA chain certificates
+    :return: A CA chain certificates string in PEM format.
+    """
     url = current_app.config.get('VAULT_URL') + '/ca_chain'
     res, resp = vault_read_request(url)
 
