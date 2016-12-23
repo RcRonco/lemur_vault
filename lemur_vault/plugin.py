@@ -1,7 +1,8 @@
 import requests
 import math
+import json
 
-from lemur.plugins import lemur_vault
+import lemur_vault
 from lemur.plugins.bases.issuer import IssuerPlugin
 from flask import current_app
 from requests import ConnectionError
@@ -52,10 +53,10 @@ def vault_read_request(url, headers=None):
 
 
 def process_sign_options(options, csr):
-    vault_params = '{"format":"pem", "common_name": "' + options['common_name'] + '"'
+    vault_params = {'format': 'pem', 'common_name': options['common_name']}
 
     if csr:
-        vault_params += ', "csr": "' + csr.replace('\n', '\\n') + '"'
+        vault_params['csr'] = csr.replace('\n', '\\n')
 
     alt_names = options['extensions']['sub_alt_names']['names']
     dns_names = ''
@@ -68,20 +69,18 @@ def process_sign_options(options, csr):
             ip_sans += name['value'] + ', '
 
     if dns_names != '':
-        vault_params += ', "alt_names": "' + dns_names[:-2] + '"'
+        vault_params['alt_names'] = dns_names[:-2]
     if ip_sans != '':
-        vault_params += ', "ip_sans": "' + ip_sans[:-2] + '"'
+        vault_params['ip_sans'] = ip_sans[:-2]
 
     is_valid, ttl = validate_ttl(options)
 
     if is_valid:
-        vault_params += ', "ttl": "' + str(int(ttl)) + 'h"'
+        vault_params['ttl'] = str(int(ttl)) + 'h'
     else:
         raise Exception('Vault: TTL is too high please choose date sooner.')
 
-    vault_params += '}'
-
-    return vault_params
+    return json.dumps(vault_params)
 
 
 def validate_ttl(options):
@@ -106,19 +105,18 @@ def validate_ttl(options):
 
 
 def process_role_options(options):
-    vault_params = '{"allow_subdomains":"true", "allow_any_name":"true"'
+    vault_params = {'allow_subdomains': 'true', 'allow_any_name': 'true'}
 
     if 'key_type' in options:
-        vault_params += ',"key_type":"' + options['key_type'][:3].lower() + '", "key_bits":"' + options['key_type'][
-                                                                                                -4:] + '"'
-    key_usage = ',"key_usage":"'
+        vault_params['key_type'] = options['key_type'][:3].lower()
+        vault_params['key_bits'] = options['key_type'][-4:]
 
+    vault_params['key_usage'] = 'KeyAgreement'
     if 'extensions' in options and 'key_usage' in options['extensions']:
         if 'use_digital_signature' in options['extensions']['key_usage']:
-            key_usage += 'DigitalSignature,'
+            vault_params['key_usage'] += ', DigitalSignature'
         if 'use_key_encipherment' in options['extensions']['key_usage']:
-            key_usage += 'KeyEncipherment,'
-        vault_params += key_usage + 'KeyAgreement"'
+            vault_params['key_usage'] += ', KeyEncipherment'
 
     ttl = -1
 
@@ -128,11 +126,10 @@ def process_role_options(options):
         ttl = options['validity_years'] * 365 * 24
 
     if ttl > 0:
-        vault_params += ',"ttl":"' + str(ttl) + 'h", "max_ttl":"' + str(ttl) + 'h"'
+        vault_params['ttl'] = str(ttl) + 'h'
+        vault_params['max_ttl'] = str(ttl) + 'h'
 
-    vault_params += '}'
-
-    return vault_params
+    return json.dumps(vault_params)
 
 
 def create_vault_role(options):
