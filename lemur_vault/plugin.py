@@ -2,11 +2,21 @@ import requests
 import math
 import json
 
-import lemur_vault
+from lemur.plugins import lemur_vault
 from lemur.plugins.bases.issuer import IssuerPlugin
 from flask import current_app
 from requests import ConnectionError
 
+VAULT_API = {
+    'sign': current_app.config.get('VAULT_PKI_URL') + '/sign/',
+    'issue': current_app.config.get('VAULT_PKI_URL') + '/issue/',
+    'roles': current_app.config.get('VAULT_PKI_URL') + '/roles/',
+    'ca_cert': current_app.config.get('VAULT_PKI_URL') + '/ca/pem',
+    'ca_chain': current_app.config.get('VAULT_PKI_URL') + '/ca_chain',
+    'user_pass': current_app.config.get('VAULT_URL') + '/auth/userpass/login/'
+}
+
+vault_token = None
 
 def vault_write_request(url, data):
     """
@@ -16,7 +26,7 @@ def vault_write_request(url, data):
     :return: 1. Boolean if the request succeed or not.
              2. If succeed return response object if failed return error string.
     """
-    headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
+    headers = {'X-Vault-Token': get_token()}
     try:
         if url.split('//')[0].lower() == 'https:':
             verify = current_app.config.get('VAULT_CA')
@@ -76,7 +86,7 @@ def process_sign_options(options, csr):
     vault_params = {'format': 'pem', 'common_name': options['common_name']}
 
     if csr:
-        vault_params['csr'] = csr.replace('\n', '\\n')
+        vault_params['csr'] = csr
 
     alt_names = options['extensions']['sub_alt_names']['names']
     dns_names = ''
@@ -115,8 +125,8 @@ def validate_ttl(options):
     elif 'validity_years' in options:
         ttl = options['validity_years'] * 365 * 24
 
-    headers = {'X-Vault-Token': current_app.config.get('VAULT_AUTH_TOKEN')}
-    res, resp = vault_read_request(current_app.config.get('VAULT_URL') + '/roles/' + options['authority'].name, headers)
+    headers = {'X-Vault-Token': get_token()}
+    res, resp = vault_read_request(VAULT_API['roles'] + options['authority'].name, headers)
 
     if res:
         max_ttl = resp.json()['data']['max_ttl']
@@ -168,7 +178,7 @@ def create_vault_role(options):
     Create a role in Vault the matches the Lemur CA options.
     :param options: Lemur option dictionary
     """
-    url = current_app.config.get('VAULT_URL') + '/roles/' + options['name']
+    url = VAULT_API['roles'] + options['name']
     params = process_role_options(options)
 
     res, resp = vault_write_request(url, params)
@@ -185,7 +195,7 @@ def get_ca_certificate():
     Get from Vault the CA certificate
     :return: A CA certificate string in PEM format.
     """
-    url = current_app.config.get('VAULT_URL') + '/ca/pem'
+    url = VAULT_API['ca_cert']
     res, resp = vault_read_request(url)
 
     if res:
@@ -201,7 +211,7 @@ def get_chain_certificate():
     Get from Vault the CA chain certificates
     :return: A CA chain certificates string in PEM format.
     """
-    url = current_app.config.get('VAULT_URL') + '/ca_chain'
+    url = VAULT_API['ca_chain']
     res, resp = vault_read_request(url)
 
     if res:
@@ -210,6 +220,52 @@ def get_chain_certificate():
         chain_cert = ''
 
     return chain_cert
+
+
+def get_token():
+    """
+    Get token from Vault.
+    :return: A CA chain certificates string in PEM format.
+    """
+    global vault_token
+
+    if vault_token is None:
+        if current_app.config.get('VAULT_AUTH') == 'TOKEN':
+            vault_token = current_app.config.get('VAULT_AUTH_TOKEN')
+        elif current_app.config.get('VAULT_AUTH') == 'USERPASS':
+            vault_token = authenticate_userpass()
+        else:
+            current_app.logger.info('Vault: VAULT_AUTH not configured correctly.')
+            raise Exception('Vault: VAULT_AUTH not configured correctly.')
+
+    return vault_token
+
+
+def authenticate_userpass():
+    """
+    User and password authentication function.
+    :return: A CA chain certificates string in PEM format.
+    """
+    if current_app.config.get('VAULT_AUTH_USERNAME'):
+        url = VAULT_API['user_pass'] + current_app.config.get('VAULT_AUTH_USERNAME')
+        try:
+            if url.split('//')[0].lower() == 'https:':
+                verify = current_app.config.get('VAULT_CA')
+            else:
+                verify = ''
+
+            data = '{ "password": "' + current_app.config.get('VAULT_AUTH_PASSWORD') + '" }'
+            resp = requests.post(url, data=data, verify=verify)
+
+            if resp.status_code != 200 and resp.status_code != 204:
+                current_app.logger.info('Vault: ' + resp.json()['errors'][0])
+                return resp.json()['errors'][0]
+
+            return resp.json()['auth']['client_token']
+
+        except ConnectionError as ConnError:
+            current_app.logger.info('Vault: There was an error while connecting to Vault server.')
+            raise ConnError
 
 
 class VaultIssuerPlugin(IssuerPlugin):
@@ -226,9 +282,9 @@ class VaultIssuerPlugin(IssuerPlugin):
             csr = csr.decode('utf-8')
 
         if csr:
-            url = current_app.config.get('VAULT_URL') + '/sign/'
+            url = VAULT_API['sign']
         else:
-            url = current_app.config.get('VAULT_URL') + '/issue/'
+            url = VAULT_API['issue']
 
         url += issuer_options['authority'].name
         params = process_sign_options(issuer_options, csr)
@@ -260,7 +316,7 @@ class VaultIssuerPlugin(IssuerPlugin):
         chain_cert = get_chain_certificate()
         create_vault_role(options)
 
-        role = {'username': '', 'password': '', 'name': 'vault'}
+        role = {'username': '', 'password': '', 'name': 'Vault'}
         current_app.logger.info('Vault: CA created successfully.')
 
         if type(ca_cert) is bytes:

@@ -11,12 +11,19 @@
 
   ```python
   # Hashicorp Vault Plugin
-  VAULT_URL = 'http://127.0.0.1:8200/v1/pki' # as example
-  VAULT_AUTH_TOKEN = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-  
+  # Basic options:
+  VAULT_URL = 'http://myvault.com:8200/v1'
+  VAULT_PKI_URL = VAULT_URL + '/pki'
+
   # For HTTPS add this option:
-  VAULT_CA = '/path/ca/certificate' # path to the ca certificate sign the Vault https cert.
-  ```
+  VAULT_CA = '/path/ca/certificate' # path to the certificate chain sign the Vault https cert.
+
+  # Authentication options:
+  VAULT_AUTH = 'TOKEN' | 'USERPASS'
+  VAULT_AUTH_TOKEN = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' # for token auth
+  VAULT_AUTH_USERNAME = 'myvaultuser' # for userpass auth
+  VAULT_AUTH_PASSWORD = 'Vault123'  # for userpass auth
+   ```
 
 3. Deploy and install the files.
 
