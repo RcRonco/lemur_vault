@@ -1,6 +1,7 @@
 import requests
 import math
 import json
+import OpenSSL
 
 from lemur.plugins import lemur_vault
 from lemur.plugins.bases.issuer import IssuerPlugin
@@ -13,10 +14,12 @@ VAULT_API = {
     'roles': current_app.config.get('VAULT_PKI_URL') + '/roles/',
     'ca_cert': current_app.config.get('VAULT_PKI_URL') + '/ca/pem',
     'ca_chain': current_app.config.get('VAULT_PKI_URL') + '/ca_chain',
-    'user_pass': current_app.config.get('VAULT_URL') + '/auth/userpass/login/'
+    'user_pass': current_app.config.get('VAULT_URL') + '/auth/userpass/login/',
+    'cert_auth': current_app.config.get('VAULT_URL') + '/auth/cert/login'
 }
 
 vault_token = None
+
 
 def vault_write_request(url, data):
     """
@@ -230,10 +233,13 @@ def get_token():
     global vault_token
 
     if vault_token is None:
-        if current_app.config.get('VAULT_AUTH') == 'TOKEN':
+        auth_type = current_app.config.get('VAULT_AUTH')
+        if auth_type == 'TOKEN':
             vault_token = current_app.config.get('VAULT_AUTH_TOKEN')
-        elif current_app.config.get('VAULT_AUTH') == 'USERPASS':
+        elif auth_type == 'USERPASS':
             vault_token = authenticate_userpass()
+        elif auth_type == 'CERT':
+            vault_token = authenticate_certificate()
         else:
             current_app.logger.info('Vault: VAULT_AUTH not configured correctly.')
             raise Exception('Vault: VAULT_AUTH not configured correctly.')
@@ -244,9 +250,9 @@ def get_token():
 def authenticate_userpass():
     """
     User and password authentication function.
-    :return: A CA chain certificates string in PEM format.
+    :return: Client token.
     """
-    if current_app.config.get('VAULT_AUTH_USERNAME'):
+    if current_app.config.get('VAULT_AUTH_USERNAME') and current_app.config.get('VAULT_AUTH_PASSWORD'):
         url = VAULT_API['user_pass'] + current_app.config.get('VAULT_AUTH_USERNAME')
         try:
             if url.split('//')[0].lower() == 'https:':
@@ -266,6 +272,39 @@ def authenticate_userpass():
         except ConnectionError as ConnError:
             current_app.logger.info('Vault: There was an error while connecting to Vault server.')
             raise ConnError
+    else:
+        raise Exception('Vault Config: Username or password not set.')
+
+
+def authenticate_certificate():
+    """
+    Certificate authentication function.
+    :return: Client token.
+    """
+    certificate = current_app.config.get('VAULT_AUTH_CERT')
+    certkey = current_app.config.get('VAULT_AUTH_CERTKEY')
+
+    if certificate and certkey:
+        try:
+            if VAULT_API['cert_auth'].split('//')[0].lower() != 'https:':
+                raise Exception('Vault: Certificate authentication work only in https!')
+
+            verify = current_app.config.get('VAULT_CA')
+            resp = requests.post(VAULT_API['cert_auth'], cert=(certificate, certkey), verify=verify)
+
+            if resp.status_code != 200 and resp.status_code != 204:
+                current_app.logger.info('Vault: ' + resp.json()['errors'][0])
+                return resp.json()['errors'][0]
+
+            return resp.json()['auth']['client_token']
+
+        except ConnectionError as ConnError:
+            current_app.logger.info('Vault: There was an error while connecting to Vault server.')
+            raise ConnError
+        except OpenSSL.SSL.Error:
+            raise Exception('Vault: error occurred while accessing the certificate files, please check the path.')
+    else:
+        raise Exception('Vault Config: cert or key path not set.')
 
 
 class VaultIssuerPlugin(IssuerPlugin):

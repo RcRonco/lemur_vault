@@ -7,22 +7,24 @@
 
 ## Installation
 1. Configure the [Vault PKI as Certificate Authority](Vault_CA.md).
-2. To install the plugin, add the following lines to your lemur.conf.py file:    
+2. To install the plugin, add the needed options to your lemur.conf.py file:
 
   ```python
   # Hashicorp Vault Plugin
   # Basic options:
-  VAULT_URL = 'http://myvault.com:8200/v1'
-  VAULT_PKI_URL = VAULT_URL + '/pki'
+  (REQUIRED) VAULT_URL = 'http://myvault.com:8200/v1'
+  (REQUIRED) VAULT_PKI_URL = VAULT_URL + '/pki'
 
-  # For HTTPS add this option:
-  VAULT_CA = '/path/ca/certificate' # path to the certificate chain sign the Vault https cert.
+  # For HTTPS add the path to the certificate chain.
+  (OPTIONAL) VAULT_CA = '/path/ca/certificate'
 
   # Authentication options:
-  VAULT_AUTH = 'TOKEN' | 'USERPASS'
+  (REQUIRED) VAULT_AUTH = 'TOKEN' | 'USERPASS' | 'CERT'
   VAULT_AUTH_TOKEN = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' # for token auth
   VAULT_AUTH_USERNAME = 'myvaultuser' # for userpass auth
   VAULT_AUTH_PASSWORD = 'Vault123'  # for userpass auth
+  VAULT_AUTH_CERT = '/tmp/crt.pem # for certificate auth
+  VAULT_AUTH_CERTKEY = '/tmp/key.pem # for certificate auth
    ```
 
 3. Deploy and install the files.
