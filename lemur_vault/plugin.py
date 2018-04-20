@@ -140,9 +140,6 @@ def process_role_options(options):
     :param options: Lemur option dictionary
     :return: All needed parameters for Vault roles endpoint in json formatted string.
     """
-    file = open('/tmp/lemur.txt', 'w')
-    file.write(str(options['extensions']))
-
     vault_params = {'allow_subdomains': 'true', 'allow_any_name': 'true'}
 
     if 'key_type' in options:
