@@ -6,7 +6,7 @@ install_requires = [
     'lemur',
     'Flask',
     'requests',
-    'OpenSSL',
+    'pyOpenSSL',
 ]
 
 setup(
