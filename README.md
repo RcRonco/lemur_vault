@@ -2,7 +2,7 @@
 [Hashicorp Vault](https://github.com/hashicorp/vault) plugin for [Netflix Lemur](https://github.com/Netflix/lemur).
 
 ## Prerequisites
-1. Lemur 0.3+
+1. Lemur 0.6.0
 2. Hashicorp Vault 0.6.2 and above.
 
 ## Installation
