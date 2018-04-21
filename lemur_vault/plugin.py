@@ -3,20 +3,10 @@ import math
 import json
 import OpenSSL
 
-from lemur.plugins import lemur_vault
+import lemur_vault
 from lemur.plugins.bases.issuer import IssuerPlugin
 from flask import current_app
 from requests import ConnectionError
-
-VAULT_API = {
-    'sign': current_app.config.get('VAULT_PKI_URL') + '/sign/',
-    'issue': current_app.config.get('VAULT_PKI_URL') + '/issue/',
-    'roles': current_app.config.get('VAULT_PKI_URL') + '/roles/',
-    'ca_cert': current_app.config.get('VAULT_PKI_URL') + '/ca/pem',
-    'ca_chain': current_app.config.get('VAULT_PKI_URL') + '/ca_chain',
-    'user_pass': current_app.config.get('VAULT_URL') + '/auth/userpass/login/',
-    'cert_auth': current_app.config.get('VAULT_URL') + '/auth/cert/login'
-}
 
 vault_token = None
 
@@ -96,10 +86,10 @@ def process_sign_options(options, csr):
     ip_sans = ''
 
     for name in alt_names:
-        if name['name_type'] == 'DNSName':
-            dns_names += name['value'] + ', '
-        if name['name_type'] == 'IPAddress':
-            ip_sans += name['value'] + ', '
+        if name == 'DNSName':
+            dns_names += name.value + ', '
+        if name == 'IPAddress':
+            ip_sans += name.value + ', '
 
     if dns_names != '':
         vault_params['alt_names'] = dns_names[:-2]
@@ -129,7 +119,8 @@ def validate_ttl(options):
         ttl = options['validity_years'] * 365 * 24
 
     headers = {'X-Vault-Token': get_token()}
-    res, resp = vault_read_request(VAULT_API['roles'] + options['authority'].name, headers)
+    res, resp = vault_read_request(current_app.config.get('VAULT_PKI_URL') + '/roles/' + options['authority'].name,
+                                   headers)
 
     if res:
         max_ttl = resp.json()['data']['max_ttl']
@@ -157,9 +148,9 @@ def process_role_options(options):
 
     vault_params['key_usage'] = 'KeyAgreement'
     if 'extensions' in options and 'key_usage' in options['extensions']:
-        if 'use_digital_signature' in options['extensions']['key_usage']:
+        if options['extensions']['key_usage'].digital_signature:
             vault_params['key_usage'] += ', DigitalSignature'
-        if 'use_key_encipherment' in options['extensions']['key_usage']:
+        if options['extensions']['key_usage'].key_encipherment:
             vault_params['key_usage'] += ', KeyEncipherment'
 
     ttl = -1
@@ -181,7 +172,7 @@ def create_vault_role(options):
     Create a role in Vault the matches the Lemur CA options.
     :param options: Lemur option dictionary
     """
-    url = VAULT_API['roles'] + options['name']
+    url = current_app.config.get('VAULT_PKI_URL') + '/roles/' + options['name']
     params = process_role_options(options)
 
     res, resp = vault_write_request(url, params)
@@ -198,7 +189,7 @@ def get_ca_certificate():
     Get from Vault the CA certificate
     :return: A CA certificate string in PEM format.
     """
-    url = VAULT_API['ca_cert']
+    url = current_app.config.get('VAULT_PKI_URL') + '/ca/pem'
     res, resp = vault_read_request(url)
 
     if res:
@@ -214,7 +205,7 @@ def get_chain_certificate():
     Get from Vault the CA chain certificates
     :return: A CA chain certificates string in PEM format.
     """
-    url = VAULT_API['ca_chain']
+    url = current_app.config.get('VAULT_PKI_URL') + '/ca_chain'
     res, resp = vault_read_request(url)
 
     if res:
@@ -230,7 +221,7 @@ def get_token():
     Get token from Vault.
     :return: A CA chain certificates string in PEM format.
     """
-    global vault_token
+    vault_token = None
 
     if vault_token is None:
         auth_type = current_app.config.get('VAULT_AUTH')
@@ -253,7 +244,8 @@ def authenticate_userpass():
     :return: Client token.
     """
     if current_app.config.get('VAULT_AUTH_USERNAME') and current_app.config.get('VAULT_AUTH_PASSWORD'):
-        url = VAULT_API['user_pass'] + current_app.config.get('VAULT_AUTH_USERNAME')
+        url = current_app.config.get('VAULT_URL') + '/auth/userpass/login/' + current_app.config.get(
+            'VAULT_AUTH_USERNAME')
         try:
             if url.split('//')[0].lower() == 'https:':
                 verify = current_app.config.get('VAULT_CA')
@@ -286,11 +278,12 @@ def authenticate_certificate():
 
     if certificate and certkey:
         try:
-            if VAULT_API['cert_auth'].split('//')[0].lower() != 'https:':
+            if current_app.config.get('VAULT_URL') + '/auth/cert/login'.split('//')[0].lower() != 'https:':
                 raise Exception('Vault: Certificate authentication work only in https!')
 
             verify = current_app.config.get('VAULT_CA')
-            resp = requests.post(VAULT_API['cert_auth'], cert=(certificate, certkey), verify=verify)
+            resp = requests.post(current_app.config.get('VAULT_URL') + '/auth/cert/login', cert=(certificate, certkey),
+                                 verify=verify)
 
             if resp.status_code != 200 and resp.status_code != 204:
                 current_app.logger.info('Vault: ' + resp.json()['errors'][0])
@@ -321,9 +314,9 @@ class VaultIssuerPlugin(IssuerPlugin):
             csr = csr.decode('utf-8')
 
         if csr:
-            url = VAULT_API['sign']
+            url = current_app.config.get('VAULT_PKI_URL') + '/sign/'
         else:
-            url = VAULT_API['issue']
+            url = current_app.config.get('VAULT_PKI_URL') + '/issue/'
 
         url += issuer_options['authority'].name
         params = process_sign_options(issuer_options, csr)
@@ -335,6 +328,7 @@ class VaultIssuerPlugin(IssuerPlugin):
         else:
             json_resp = resp.json()
             cert = json_resp['data']['certificate']
+            external_id = json_resp['request_id']
 
             if 'ca_chain' in json_resp['data']:
                 chain_certs = json_resp['data']['ca_chain']
@@ -347,7 +341,7 @@ class VaultIssuerPlugin(IssuerPlugin):
                 raise Exception('Vault: ' + resp.content + '.')
             else:
                 current_app.logger.info('Vault: certificate created successfully.')
-                return cert, int_cert
+                return cert, int_cert, external_id
 
     @staticmethod
     def create_authority(options):
