@@ -19,12 +19,14 @@
   (OPTIONAL) VAULT_CA = '/path/ca/certificate'
 
   # Authentication options:
-  (REQUIRED) VAULT_AUTH = 'TOKEN' | 'USERPASS' | 'CERT'
+  (REQUIRED) VAULT_AUTH = 'TOKEN' | 'USERPASS' | 'CERT' | 'GCP'
   VAULT_AUTH_TOKEN = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' # for token auth
   VAULT_AUTH_USERNAME = 'myvaultuser' # for userpass auth
   VAULT_AUTH_PASSWORD = 'Vault123'  # for userpass auth
   VAULT_AUTH_CERT = '/tmp/crt.pem # for certificate auth
   VAULT_AUTH_CERTKEY = '/tmp/key.pem # for certificate auth
+  VAULT_AUTH_ROLE = 'myvaultrole' # for gcp auth
+  VAULT_AUTH_ACCOUNT = 'mygcpaccount' # for gcp auth
    ```
 
 3. Deploy and install the files.
