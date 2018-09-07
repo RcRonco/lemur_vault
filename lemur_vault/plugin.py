@@ -231,11 +231,14 @@ def get_token():
             vault_token = authenticate_userpass()
         elif auth_type == 'CERT':
             vault_token = authenticate_certificate()
+        elif auth_type == 'GCP':
+            vault_token = authenticate_gcp()
         else:
             current_app.logger.info('Vault: VAULT_AUTH not configured correctly.')
             raise Exception('Vault: VAULT_AUTH not configured correctly.')
 
     return vault_token
+
 
 
 def authenticate_userpass():
@@ -298,6 +301,69 @@ def authenticate_certificate():
             raise Exception('Vault: error occurred while accessing the certificate files, please check the path.')
     else:
         raise Exception('Vault Config: cert or key path not set.')
+
+
+def generate_gcp_jwt():
+    """
+    Generate GCP JWT for Vault authentication.
+    :return: GCP JWT
+    """
+    role = current_app.config.get('VAULT_AUTH_ROLE')
+    account = current_app.config.get('VAULT_AUTH_ACCOUNT')
+
+    if role and account:
+        headers = {'Metadata-Flavor': 'Google'}
+        url = 'http://metadata/computeMetadata/v1/instance/service-accounts/' + account + '/identity'
+        try:
+            data = [('audience', current_app.config.get('VAULT_URL') + '/vault/' + role ),('format', 'full')]
+            resp = requests.post(url, headers=headers, data=data)
+            
+            if resp.status_code != 200 and resp.status_code != 204:
+                current_app.logger.info('Vault: ' + resp.text)
+                raise Exception('Vault GCP Auth: Issues retrieving JWT.')
+
+            return resp.text
+
+        except ConnectionError as ConnError:
+            current_app.logger.info('Vault: There was an error while connecting to GCE metadata.'
+            raise ConnError
+
+    else:
+        raise Exception('Vault Config: Role and Service Account not set.')
+
+
+
+def authenticate_gcp():
+    """
+    GCP JWT authentication function.
+    :return: Client token.
+    """"
+    role = current_app.config.get('VAULT_AUTH_ROLE')
+
+    if role:
+        url = current_app.config.get('VAULT_URL') + '/v1/auth/gcp/login'
+        try:
+            if url.split('//')[0].lower() == 'https:':
+                verify = current_app.config.get('VAULT_CA')
+            else:
+                verify = ''
+            jwt = generate_gcp_jwt()
+            json = {"role": '{}'.format(role), "jwt": '{}'.format(jwt)}
+            resp = requests.post(url, json=json, verify=verify)
+                                    
+            if resp.status_code != 200 and resp.status_code != 204:
+                current_app.logger.info('Vault: ' + response.json()['errors'][0]
+                return resp.json()['errors'][0]
+                                        
+            return resp.json()['auth']['client_token']
+                                        
+        except ConnectionError as ConnError:
+            current_app.logger.info('Vault: There was an error while connecting to Vault server.')
+            raise ConnError
+                                        
+    else:
+        raise Exception('Vault Config: Vault Role not set.')
+
 
 
 class VaultIssuerPlugin(IssuerPlugin):
