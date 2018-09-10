@@ -325,7 +325,7 @@ def generate_gcp_jwt():
             return resp.text
 
         except ConnectionError as ConnError:
-            current_app.logger.info('Vault: There was an error while connecting to GCE metadata.'
+            current_app.logger.info('Vault: There was an error while connecting to GCE metadata.')
             raise ConnError
 
     else:
