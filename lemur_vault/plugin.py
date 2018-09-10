@@ -337,7 +337,7 @@ def authenticate_gcp():
     """
     GCP JWT authentication function.
     :return: Client token.
-    """"
+    """
     role = current_app.config.get('VAULT_AUTH_ROLE')
 
     if role:
@@ -352,7 +352,7 @@ def authenticate_gcp():
             resp = requests.post(url, json=json, verify=verify)
                                     
             if resp.status_code != 200 and resp.status_code != 204:
-                current_app.logger.info('Vault: ' + response.json()['errors'][0]
+                current_app.logger.info('Vault: ' + response.json()['errors'][0])
                 return resp.json()['errors'][0]
                                         
             return resp.json()['auth']['client_token']
