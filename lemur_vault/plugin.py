@@ -240,7 +240,6 @@ def get_token():
     return vault_token
 
 
-
 def authenticate_userpass():
     """
     User and password authentication function.
