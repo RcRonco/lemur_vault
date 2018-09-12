@@ -124,7 +124,7 @@ def validate_ttl(options):
 
     if res:
         max_ttl = resp.json()['data']['max_ttl']
-        if int(str(max_ttl).rsplit('h', 1)[0]) < ttl:
+        if int(max_ttl.rsplit('h', 1)[0]) < ttl:
             current_app.logger.info('Certificate TTL is above max ttl - ' + max_ttl)
             return False, -1
         else:
@@ -193,7 +193,7 @@ def get_ca_certificate():
     res, resp = vault_read_request(url)
 
     if res:
-        ca_cert = resp.content
+        ca_cert = resp.content[:-1]
         return ca_cert
     else:
         current_app.logger.info('Vault PKI failed to get CA Certificate.')
