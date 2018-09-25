@@ -117,10 +117,9 @@ def validate_ttl(options):
     else:
         ttl = 0
 
-
     headers = {'X-Vault-Token': vault_auth.get_token()}
-    res, resp = vault_read_request(current_app.config.get('VAULT_PKI_URL') + '/roles/' + options['authority'].name,
-                                   headers)
+    url = '{}/roles/{}'.format(current_app.config.get('VAULT_PKI_URL'), options['authority'].name)
+    res, resp = vault_read_request(url, headers)
 
     if res:
         max_ttl = resp.json()['data']['max_ttl']
@@ -172,7 +171,7 @@ def create_vault_role(options):
     Create a role in Vault the matches the Lemur CA options.
     :param options: Lemur option dictionary
     """
-    url = current_app.config.get('VAULT_PKI_URL') + '/roles/' + options['name']
+    url = '{}/roles/{}'.format(current_app.config.get('VAULT_PKI_URL'), options['name'])
     params = process_role_options(options)
 
     res, resp = vault_write_request(url, params)

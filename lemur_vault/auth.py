@@ -65,9 +65,9 @@ def _userpwd_auth(vault_auth_path):
     :return:  Client token and lease duration
     """
     if current_app.config.get('VAULT_AUTH_USERNAME') and current_app.config.get('VAULT_AUTH_PASSWORD'):
-        url = '{}/auth/{}/login/{}'.format(current_app.config.get('VAULT_URL'),
-                                           vault_auth_path,
-                                           current_app.config.get('VAULT_AUTH_USERNAME'))
+        url = '{}/v1/auth/{}/login/{}'.format(current_app.config.get('VAULT_URL'),
+                                              vault_auth_path,
+                                              current_app.config.get('VAULT_AUTH_USERNAME'))
 
         if url.split('//')[0].lower() == 'https:':
             verify = current_app.config.get('VAULT_CA')
@@ -116,8 +116,8 @@ def authenticate_certificate():
                 raise RuntimeError('Vault: Certificate authentication work only in https!')
 
             verify = current_app.config.get('VAULT_CA')
-            url = '{}/auth/{}/login'.format(current_app.config.get('VAULT_URL'),
-                                            current_app.config.get('VAULT_AUTH_PATH', 'cert'))
+            url = '{}/v1/auth/{}/login'.format(current_app.config.get('VAULT_URL'),
+                                               current_app.config.get('VAULT_AUTH_PATH', 'cert'))
             resp = requests.post(url, cert=(certificate, certkey), verify=verify)
 
             if resp.status_code != 200 and resp.status_code != 204:
@@ -141,8 +141,8 @@ def authenticate_approle():
     secret = current_app.config.get('VAULT_AUTH_SECRET')
 
     if role and secret:
-        url = '{}/auth/{}/login'.format(current_app.config.get('VAULT_URL'),
-                                        current_app.config.get('VAULT_AUTH_PATH', 'approle'))
+        url = '{}/v1/auth/{}/login'.format(current_app.config.get('VAULT_URL'),
+                                           current_app.config.get('VAULT_AUTH_PATH', 'approle'))
         if url.split('//')[0].lower() == 'https:':
             verify = current_app.config.get('VAULT_CA')
         else:
@@ -197,8 +197,8 @@ def authenticate_gcp():
     role = current_app.config.get('VAULT_AUTH_ROLE')
 
     if role:
-        url = '{}/auth/{}/login'.format(current_app.config.get('VAULT_URL'),
-                                        current_app.config.get('VAULT_AUTH_PATH', 'gcp'))
+        url = '{}/v1/auth/{}/login'.format(current_app.config.get('VAULT_URL'),
+                                           current_app.config.get('VAULT_AUTH_PATH', 'gcp'))
         if url.split('//')[0].lower() == 'https:':
             verify = current_app.config.get('VAULT_CA')
         else:
