@@ -12,21 +12,34 @@
   ```python
   # Hashicorp Vault Plugin
   # Basic options:
-  (REQUIRED) VAULT_URL = 'http://myvault.com:8200/v1'
-  (REQUIRED) VAULT_PKI_URL = VAULT_URL + '/pki'
+  (REQUIRED) VAULT_URL = 'http://myvault.com:8200'
+  (REQUIRED) VAULT_PKI_URL = VAULT_URL + '/v1/pki'
 
   # For HTTPS add the path to the certificate chain.
   (OPTIONAL) VAULT_CA = '/path/ca/certificate'
 
   # Authentication options:
-  (REQUIRED) VAULT_AUTH = 'TOKEN' | 'USERPASS' | 'CERT' | 'GCP'
-  VAULT_AUTH_TOKEN = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' # for token auth
-  VAULT_AUTH_USERNAME = 'myvaultuser' # for userpass auth
-  VAULT_AUTH_PASSWORD = 'Vault123'  # for userpass auth
-  VAULT_AUTH_CERT = '/tmp/crt.pem # for certificate auth
-  VAULT_AUTH_CERTKEY = '/tmp/key.pem # for certificate auth
-  VAULT_AUTH_ROLE = 'myvaultrole' # for gcp auth
-  VAULT_AUTH_ACCOUNT = 'mygcpaccount' # for gcp auth
+  (REQUIRED) VAULT_AUTH = 'TOKEN' | 'USERPASS' | 'CERT' | 'APPROLE' | 'LDAP' | 'GCP'
+  VAULT_AUTH_PATH = 'authentication mounting point name' # Default to be the auth name
+  
+  # Token Auth
+  VAULT_AUTH_TOKEN = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+  
+  # LDAP/Userpass Auth
+  VAULT_AUTH_USERNAME = 'myvaultuser'
+  VAULT_AUTH_PASSWORD = 'Vault123'
+  
+  # TLS Certificates Auth
+  VAULT_AUTH_CERT = '/tmp/crt.pem
+  VAULT_AUTH_CERTKEY = '/tmp/key.pem
+  
+  # GCP Auth
+  VAULT_AUTH_ROLE = 'myvaultrole'
+  VAULT_AUTH_ACCOUNT = 'mygcpaccount'
+  
+  # AppRole Auth
+  VAULT_AUTH_ROLE = 'myvaultrole'
+  VAULT_AUTH_SECRET = 'approle_secret_id'
    ```
 
 3. Deploy and install the files.
